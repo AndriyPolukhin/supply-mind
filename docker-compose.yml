@@ -1,0 +1,186 @@
+version: '3.8'
+
+services:
+    # Frontend application
+    frontend:
+        build: ./frontend
+        ports:
+            - '3000:3000'
+        volumes:
+            - ./frontend:/app
+            - /app/node_modules
+        depends_on:
+            - api-gateway
+        environment:
+            - NODE_ENV=development
+            - API_URL=http://api-gateway:3001
+
+    # API Gateway
+    api-gateway:
+        build: ./backend/gateway
+        ports:
+            - '3001:3001'
+        volumes:
+            - ./backend/gateway:/app
+            - /app/node_modules
+        depends_on:
+            - postgres
+            - redis
+        environment:
+            - NODE_ENV=development
+            - POSTGRES_HOST=postgres
+            - REDIS_HOST=redis
+            - USER_SERVICE_HOST=user-service
+            - FORECAST_SERVICE_HOST=forecast-service
+            - INVENTORY_SERVICE_HOST=inventory-service
+            - LOGISTICS_SERVICE_HOST=logistics-service
+            - RISK_SERVICE_HOST=risk-service
+            - INTEGRATION_SERVICE_HOST=integration-service
+            - AI_ENGINE_URL=http://ai-engine:5000
+
+    # User Service
+    user-service:
+        build: ./backend/user-service
+        volumes:
+            - ./backend/user-service:/app
+            - /app/node_modules
+        depends_on:
+            - postgres
+            - redis
+        environment:
+            - NODE_ENV=development
+            - POSTGRES_HOST=postgres
+            - REDIS_HOST=redis
+
+    # Forecast Service
+    forecast-service:
+        build: ./backend/forecast-service
+        volumes:
+            - ./backend/forecast-service:/app
+            - /app/node_modules
+        depends_on:
+            - postgres
+            - redis
+            - ai-engine
+        environment:
+            - NODE_ENV=development
+            - POSTGRES_HOST=postgres
+            - REDIS_HOST=redis
+            - AI_ENGINE_URL=http://ai-engine:5000
+
+    # Inventory Service
+    inventory-service:
+        build: ./backend/inventory-service
+        volumes:
+            - ./backend/inventory-service:/app
+            - /app/node_modules
+        depends_on:
+            - postgres
+            - redis
+            - ai-engine
+        environment:
+            - NODE_ENV=development
+            - POSTGRES_HOST=postgres
+            - REDIS_HOST=redis
+            - AI_ENGINE_URL=http://ai-engine:5000
+
+    # Logistics Service
+    logistics-service:
+        build: ./backend/logistics-service
+        volumes:
+            - ./backend/logistics-service:/app
+            - /app/node_modules
+        depends_on:
+            - postgres
+            - redis
+            - ai-engine
+        environment:
+            - NODE_ENV=development
+            - POSTGRES_HOST=postgres
+            - REDIS_HOST=redis
+            - AI_ENGINE_URL=http://ai-engine:5000
+
+    # Risk Service
+    risk-service:
+        build: ./backend/risk-service
+        volumes:
+            - ./backend/risk-service:/app
+            - /app/node_modules
+        depends_on:
+            - postgres
+            - redis
+            - ai-engine
+        environment:
+            - NODE_ENV=development
+            - POSTGRES_HOST=postgres
+            - REDIS_HOST=redis
+            - AI_ENGINE_URL=http://ai-engine:5000
+
+    # Integration Service
+    integration-service:
+        build: ./backend/integration-service
+        volumes:
+            - ./backend/integration-service:/app
+            - /app/node_modules
+        depends_on:
+            - postgres
+            - redis
+        environment:
+            - NODE_ENV=development
+            - POSTGRES_HOST=postgres
+            - REDIS_HOST=redis
+            - AWS_REGION=${AWS_REGION}
+            - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+            - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+
+    # AI Engine (Python)
+    ai-engine:
+        build: ./ai-engine
+        ports:
+            - '5000:5000'
+        volumes:
+            - ./ai-engine:/app
+        environment:
+            - PYTHONUNBUFFERED=1
+            - MODEL_PATH=/app/models
+            - AWS_REGION=${AWS_REGION}
+            - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+            - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+
+    # PostgreSQL Database
+    postgres:
+        image: postgres:15
+        ports:
+            - '5432:5432'
+        volumes:
+            - postgres_data:/var/lib/postgresql/data
+            - ./infrastructure/db/init:/docker-entrypoint-initdb.d
+        environment:
+            - POSTGRES_USER=${POSTGRES_USER:-supplyuser}
+            - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-supplypwd}
+            - POSTGRES_DB=${POSTGRES_DB:-supplymind}
+
+    # Redis for BullJS queue
+    redis:
+        image: redis:7
+        ports:
+            - '6379:6379'
+        volumes:
+            - redis_data:/data
+
+    # LocalStack for AWS local development
+    localstack:
+        image: localstack/localstack:latest
+        ports:
+            - '4566:4566'
+        environment:
+            - SERVICES=s3,sqs,bedrock
+            - DEBUG=1
+        volumes:
+            - localstack_data:/tmp/localstack
+            - ./infrastructure/aws:/docker-entrypoint-initaws.d
+
+volumes:
+    postgres_data:
+    redis_data:
+    localstack_data:
